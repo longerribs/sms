@@ -1,0 +1,28 @@
+{
+  "name": "Danger Crimson",
+  "description": "Bold crimson red theme for critical alerts & emergency dispatching",
+  "is_light": false,
+  "colors": {
+    "primary": "#ef4444",
+    "secondary": "#b91c1c",
+    "primary-glow": "rgba(239, 68, 68, 0.4)",
+    "bg-main": "#180505",
+    "card-bg": "rgba(239, 68, 68, 0.08)",
+    "card-hover": "rgba(239, 68, 68, 0.15)",
+    "text-primary": "#fef2f2",
+    "text-muted": "#fca5a5",
+    "text-number": "#fee2e2",
+    "border": "#991b1b",
+    "border-light": "rgba(239, 68, 68, 0.2)",
+    "divider": "rgba(239, 68, 68, 0.12)",
+    "glass-border": "rgba(239, 68, 68, 0.25)",
+    "accent-success": "#10b981",
+    "accent-warning": "#f59e0b",
+    "accent-error": "#ef4444",
+    "accent-info": "#3b82f6",
+    "accent-danger": "#b91c1c",
+    "chart-1": "#ef4444",
+    "chart-2": "#f87171",
+    "chart-3": "#dc2626"
+  }
+}

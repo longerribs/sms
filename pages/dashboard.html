@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clayon - SMS Reseller Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+        }
+        
+        .sidebar {
+            width: 250px;
+            background: #2d3748;
+            color: white;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar h2 {
+            margin-bottom: 30px;
+            font-size: 20px;
+        }
+        
+        .sidebar a {
+            display: block;
+            color: #cbd5e0;
+            text-decoration: none;
+            padding: 12px 15px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            transition: all 0.3s;
+        }
+        
+        .sidebar a:hover,
+        .sidebar a.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            color: #2d3748;
+        }
+        
+        .user-info {
+            text-align: right;
+        }
+        
+        .user-info .name {
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .user-info .email {
+            font-size: 14px;
+            color: #718096;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .card-title {
+            font-size: 14px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+        
+        .card-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+        
+        .card-subtitle {
+            font-size: 12px;
+            color: #cbd5e0;
+            margin-top: 8px;
+        }
+        
+        .section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .section h2 {
+            font-size: 20px;
+            color: #2d3748;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #edf2f7;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #2d3748;
+            font-weight: 500;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: scale(1.02);
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+        
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        .table th {
+            background: #f7fafc;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #2d3748;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .table td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #4a5568;
+        }
+        
+        .table tr:hover {
+            background: #f7fafc;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .status-pending {
+            background: #feebc8;
+            color: #7c2d12;
+        }
+        
+        .status-accepted {
+            background: #bee3f8;
+            color: #2c5282;
+        }
+
+        .status-processing {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .status-completed {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .status-failed {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+        
+        .alert {
+            padding: 12px 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        
+        .alert-info {
+            background: #bee3f8;
+            color: #2c5282;
+            border-left: 4px solid #3182ce;
+        }
+        
+        .alert-success {
+            background: #c6f6d5;
+            color: #22543d;
+            border-left: 4px solid #38a169;
+        }
+        
+        .alert-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border-left: 4px solid #c53030;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #718096;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #e2e8f0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+        }
+        
+        .modal-header {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #2d3748;
+        }
+        
+        .modal-close {
+            float: right;
+            font-size: 28px;
+            cursor: pointer;
+            color: #cbd5e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>🚀 Clayon</h2>
+        <a href="#dashboard" class="nav-link active" onclick="loadPage('dashboard')">Dashboard</a>
+        <a href="#send" class="nav-link" onclick="loadPage('send')">Send SMS</a>
+        <a href="#balance" class="nav-link" onclick="loadPage('balance')">Top Up Units</a>
+        <a href="#sender-ids" class="nav-link" onclick="loadPage('sender-ids')">Sender IDs</a>
+        <a href="#history" class="nav-link" onclick="loadPage('history')">History</a>
+        <a href="#ledger" class="nav-link" onclick="loadPage('ledger')">Ledger</a>
+        <a href="#settings" class="nav-link" onclick="loadPage('settings')">Settings</a>
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #4a5568;">
+        <a href="#logout" onclick="logout()">Logout</a>
+    </div>
+    
+    <div class="main-content">
+        <div class="header">
+            <div>
+                <h1 id="page-title">Dashboard</h1>
+            </div>
+            <div class="user-info">
+                <div class="name" id="user-name">User</div>
+                <div class="email" id="user-email">user@example.com</div>
+            </div>
+        </div>
+        
+        <div id="content-area"></div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_BASE_URL = '/clayon/api';
+        let apiKey = localStorage.getItem('clayonApiKey');
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!apiKey) {
+                redirectToLogin();
+                return;
+            }
+            
+            loadUserInfo();
+            loadPage('dashboard');
+        });
+        
+        async function loadUserInfo() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/balance`, {
+                    headers: { 'Authorization': `Bearer ${apiKey}` }
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    document.getElementById('user-name').textContent = data.data.client_name;
+                    document.getElementById('user-email').textContent = data.data.client_id;
+                }
+            } catch (err) {
+                console.error('Failed to load user info:', err);
+            }
+        }
+        
+        function loadPage(page) {
+            // Update active nav
+            document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+            event?.target?.classList.add('active');
+            
+            const contentArea = document.getElementById('content-area');
+            contentArea.innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
+            
+            setTimeout(() => {
+                switch(page) {
+                    case 'dashboard':
+                        loadDashboard();
+                        break;
+                    case 'send':
+                        loadSendSMS();
+                        break;
+                    case 'balance':
+                        loadBalance();
+                        break;
+                    case 'sender-ids':
+                        loadSenderIds();
+                        break;
+                    case 'history':
+                        loadHistory();
+                        break;
+                    case 'ledger':
+                        loadLedger();
+                        break;
+                    case 'settings':
+                        loadSettings();
+                        break;
+                }
+            }, 300);
+        }
+        
+        async function loadDashboard() {
+            document.getElementById('page-title').textContent = 'Dashboard';
+            
+            try {
+                const balanceRes = await fetch(`${API_BASE_URL}/balance`, {
+                    headers: { 'Authorization': `Bearer ${apiKey}` }
+                });
+                const balance = await balanceRes.json();
+                
+                const historyRes = await fetch(`${API_BASE_URL}/history?limit=5`, {
+                    headers: { 'Authorization': `Bearer ${apiKey}` }
+                });
+                const history = await historyRes.json();
+                
+                let html = `
+                    <div class="dashboard-grid">
+                        <div class="card">
+                            <div class="card-title">Available Units</div>
+                            <div class="card-value">${balance.data.available_units.toFixed(2)}</div>
+                            <div class="card-subtitle">Ready to send</div>
+                        </div>
+                        <div class="card">
+                            <div class="card-title">Total Balance</div>
+                            <div class="card-value">${balance.data.balance_units.toFixed(2)}</div>
+                            <div class="card-subtitle">All units</div>
+                        </div>
+                        <div class="card">
+                            <div class="card-title">Reserved Units</div>
+                            <div class="card-value">${balance.data.reserved_units.toFixed(2)}</div>
+                            <div class="card-subtitle">Pending delivery</div>
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <h2>Recent Sends</h2>
+                        ${history.data.records.length > 0 ? `
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Reference</th>
+                                        <th>Recipient</th>
+                                        <th>Segments</th>
+                                        <th>Cost</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${history.data.records.map(r => `
+                                        <tr>
+                                            <td>${r.reference}</td>
+                                            <td>${r.recipient}</td>
+                                            <td>${r.segments}</td>
+                                            <td>KES ${r.final_cost.toFixed(2)}</td>
+                                            <td><span class="status-badge status-${r.status}">${r.status}</span></td>
+                                            <td>${new Date(r.created_at).toLocaleDateString()}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        ` : '<p>No sends yet</p>'}
+                    </div>
+                `;
+                
+                document.getElementById('content-area').innerHTML = html;
+            } catch (err) {
+                document.getElementById('content-area').innerHTML = `<div class="alert alert-error">Error loading dashboard</div>`;
+            }
+        }
+        
+        async function loadSendSMS() {
+            document.getElementById('page-title').textContent = 'Send SMS';
+            
+            const senderIdsRes = await fetch(`${API_BASE_URL}/sender-ids`, {
+                headers: { 'Authorization': `Bearer ${apiKey}` }
+            });
+            const senderIds = await senderIdsRes.json();
+            
+            const html = `
+                <div class="section">
+                    <h2>Send SMS</h2>
+                    <form id="send-form" onsubmit="submitSendSMS(event)">
+                        <div class="form-group">
+                            <label>Sender ID</label>
+                            <select id="sender_id" required>
+                                <option value="">Select Sender ID</option>
+                                ${senderIds.data.sender_ids.filter(s => s.approval_status === 'approved').map(s => 
+                                    `<option value="${s.sender_id}">${s.sender_id}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Recipient Phone</label>
+                            <input type="tel" id="recipient" placeholder="e.g., +254123456789" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Message</label>
+                            <textarea id="message" rows="4" placeholder="Enter your message" required></textarea>
+                            <small id="char-count" style="color: #718096; margin-top: 5px;">0 characters</small>
+                        </div>
+                        <button type="submit">Send SMS</button>
+                    </form>
+                    <div id="send-result" style="margin-top: 20px;"></div>
+                </div>
+            `;
+            
+            document.getElementById('content-area').innerHTML = html;
+            
+            document.getElementById('message').addEventListener('input', function() {
+                const count = this.value.length;
+                const segments = Math.ceil(count / 153) || 1;
+                document.getElementById('char-count').textContent = `${count} characters (${segments} segment${segments !== 1 ? 's' : ''})`;
+            });
+        }
+        
+        async function submitSendSMS(event) {
+            event.preventDefault();
+            
+            const senderId = document.getElementById('sender_id').value;
+            const recipient = document.getElementById('recipient').value;
+            const message = document.getElementById('message').value;
+            
+            const resultDiv = document.getElementById('send-result');
+            resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div> Sending...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/send`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        sender_id: senderId,
+                        recipient: recipient,
+                        message: message
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>Success!</strong><br>
+                            Reference: ${data.data.reference}<br>
+                            Status: ${data.data.status}
+                        </div>
+                    `;
+                    document.getElementById('send-form').reset();
+                    document.getElementById('char-count').textContent = '0 characters';
+                } else {
+                    resultDiv.innerHTML = `<div class="alert alert-error">${data.message}</div>`;
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<div class="alert alert-error">Error sending SMS: ${err.message}</div>`;
+            }
+        }
+        
+        async function loadBalance() {
+            document.getElementById('page-title').textContent = 'Top Up Units';
+            
+            const html = `
+                <div class="section">
+                    <h2>Top Up Balance</h2>
+                    <form id="topup-form" onsubmit="submitTopup(event)">
+                        <div class="form-group">
+                            <label>Amount (KES)</label>
+                            <input type="number" id="amount" step="50" min="100" placeholder="Enter amount (min: 100)" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Phone Number</label>
+                            <input type="tel" id="phone" placeholder="e.g., +254123456789 or 0123456789" required>
+                        </div>
+                        <button type="submit">Proceed to Payment</button>
+                    </form>
+                    <div id="topup-result" style="margin-top: 20px;"></div>
+                </div>
+            `;
+            
+            document.getElementById('content-area').innerHTML = html;
+        }
+        
+        async function submitTopup(event) {
+            event.preventDefault();
+            
+            const amount = document.getElementById('amount').value;
+            const phone = document.getElementById('phone').value;
+            
+            const resultDiv = document.getElementById('topup-result');
+            resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div> Initiating payment...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/payment/initiate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        amount: parseFloat(amount),
+                        phone: phone
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <strong>Payment Initiated!</strong><br>
+                            Amount: KES ${data.data.amount}<br>
+                            Phone: ${data.data.phone}<br>
+                            ${data.data.message}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="alert alert-error">${data.message}</div>`;
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<div class="alert alert-error">Error: ${err.message}</div>`;
+            }
+        }
+        
+        async function loadSenderIds() {
+            document.getElementById('page-title').textContent = 'Sender IDs';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/sender-ids`, {
+                    headers: { 'Authorization': `Bearer ${apiKey}` }
+                });
+                const data = await response.json();
+                
+                const html = `
+                    <div class="section">
+                        <h2>Approved Sender IDs</h2>
+                        ${data.data.sender_ids.length > 0 ? `
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Sender ID</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.data.sender_ids.map(s => `
+                                        <tr>
+                                            <td>${s.sender_id}</td>
+                                            <td><span class="status-badge status-${s.approval_status}">${s.approval_status}</span></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        ` : '<p>No sender IDs approved yet</p>'}
+                    </div>
+                    
+                    <div class="section">
+                        <h2>Request New Sender ID</h2>
+                        <form id="sender-form" onsubmit="submitSenderId(event)">
+                            <div class="form-group">
+                                <label>Sender ID (2-20 alphanumeric characters)</label>
+                                <input type="text" id="new_sender_id" pattern="[a-zA-Z0-9]{2,20}" placeholder="e.g., MyBrand" required>
+                            </div>
+                            <button type="submit">Request Approval</button>
+                        </form>
+                        <div id="sender-result" style="margin-top: 20px;"></div>
+                    </div>
+                `;
+                
+                document.getElementById('content-area').innerHTML = html;
+            } catch (err) {
+                document.getElementById('content-area').innerHTML = `<div class="alert alert-error">Error loading sender IDs</div>`;
+            }
+        }
+        
+        async function submitSenderId(event) {
+            event.preventDefault();
+            
+            const senderId = document.getElementById('new_sender_id').value;
+            const resultDiv = document.getElementById('sender-result');
+            resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div> Submitting...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/sender-ids`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        sender_id: senderId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    resultDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            Your request for "${data.data.sender_id}" has been submitted for approval.
+                        </div>
+                    `;
+                    document.getElementById('sender-form').reset();
+                } else {
+                    resultDiv.innerHTML = `<div class="alert alert-error">${data.message}</div>`;
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<div class="alert alert-error">Error: ${err.message}</div>`;
+            }
+        }
+        
+        async function loadHistory() {
+            document.getElementById('page-title').textContent = 'Send History';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/history?limit=100`, {
+                    headers: { 'Authorization': `Bearer ${apiKey}` }
+                });
+                const data = await response.json();
+                
+                const html = `
+                    <div class="section">
+                        <h2>SMS Send History</h2>
+                        ${data.data.records.length > 0 ? `
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Reference</th>
+                                        <th>Recipient</th>
+                                        <th>Message</th>
+                                        <th>Segments</th>
+                                        <th>Cost</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.data.records.map(r => `
+                                        <tr>
+                                            <td>${r.reference}</td>
+                                            <td>${r.recipient}</td>
+                                            <td>${r.message.substring(0, 30)}...</td>
+                                            <td>${r.segments}</td>
+                                            <td>KES ${r.final_cost.toFixed(2)}</td>
+                                            <td><span class="status-badge status-${r.status}">${r.status}</span></td>
+                                            <td>${new Date(r.created_at).toLocaleString()}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        ` : '<p>No SMS history</p>'}
+                    </div>
+                `;
+                
+                document.getElementById('content-area').innerHTML = html;
+            } catch (err) {
+                document.getElementById('content-area').innerHTML = `<div class="alert alert-error">Error loading history</div>`;
+            }
+        }
+        
+        async function loadLedger() {
+            document.getElementById('page-title').textContent = 'Wallet Ledger';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/ledger?limit=100`, {
+                    headers: { 'Authorization': `Bearer ${apiKey}` }
+                });
+                const data = await response.json();
+                
+                const html = `
+                    <div class="section">
+                        <h2>Transaction Ledger</h2>
+                        ${data.data.records.length > 0 ? `
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>Units</th>
+                                        <th>Reference</th>
+                                        <th>Note</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.data.records.map(r => `
+                                        <tr>
+                                            <td><span class="status-badge status-${r.type}">${r.type}</span></td>
+                                            <td>${r.units}</td>
+                                            <td>${r.reference || '-'}</td>
+                                            <td>${r.note}</td>
+                                            <td>${new Date(r.created_at).toLocaleString()}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        ` : '<p>No ledger entries</p>'}
+                    </div>
+                `;
+                
+                document.getElementById('content-area').innerHTML = html;
+            } catch (err) {
+                document.getElementById('content-area').innerHTML = `<div class="alert alert-error">Error loading ledger</div>`;
+            }
+        }
+        
+        function loadSettings() {
+            document.getElementById('page-title').textContent = 'Settings';
+            
+            const html = `
+                <div class="section">
+                    <h2>Account Settings</h2>
+                    <p>Settings page coming soon...</p>
+                </div>
+            `;
+            
+            document.getElementById('content-area').innerHTML = html;
+        }
+        
+        function redirectToLogin() {
+            window.location.href = '/clayon/login.html';
+        }
+        
+        function logout() {
+            localStorage.removeItem('clayonApiKey');
+            redirectToLogin();
+        }
+    </script>
+</body>
+</html>

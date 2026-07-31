@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clayon - Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo h1 {
+            font-size: 32px;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .logo p {
+            color: #718096;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2d3748;
+            font-weight: 500;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        button {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 15px;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: scale(1.02);
+        }
+        
+        button:active {
+            transform: scale(0.98);
+        }
+        
+        .alert {
+            padding: 12px 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid;
+        }
+        
+        .alert-info {
+            background: #bee3f8;
+            color: #2c5282;
+            border-left-color: #3182ce;
+        }
+        
+        .alert-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border-left-color: #c53030;
+        }
+        
+        .loading {
+            display: none;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">
+            <h1>🚀 Clayon</h1>
+            <p>SMS Reseller Platform</p>
+        </div>
+        
+        <div id="alert-area"></div>
+        
+        <form id="login-form" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label>API Key</label>
+                <input type="password" id="apiKey" placeholder="Enter your API key" required>
+            </div>
+            
+            <button type="submit">
+                <span id="btn-text">Access Dashboard</span>
+                <span id="loading" class="loading">
+                    <span class="spinner"></span>
+                </span>
+            </button>
+        </form>
+        
+        <div class="alert alert-info" style="margin-top: 20px;">
+            <strong>Demo:</strong> Use a valid Clayon API key to access your dashboard.
+        </div>
+    </div>
+    
+    <script>
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const apiKey = document.getElementById('apiKey').value;
+            const alertArea = document.getElementById('alert-area');
+            const btnText = document.getElementById('btn-text');
+            const loading = document.getElementById('loading');
+            
+            // Show loading
+            btnText.style.display = 'none';
+            loading.style.display = 'inline';
+            
+            try {
+                // Verify API key by fetching balance
+                const response = await fetch('/clayon/api/balance', {
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    // Save API key and redirect
+                    localStorage.setItem('clayonApiKey', apiKey);
+                    window.location.href = '/clayon/pages/dashboard.html';
+                } else {
+                    alertArea.innerHTML = `<div class="alert alert-error">${data.message || 'Invalid API key'}</div>`;
+                }
+            } catch (err) {
+                alertArea.innerHTML = `<div class="alert alert-error">Error: ${err.message}</div>`;
+            } finally {
+                btnText.style.display = 'inline';
+                loading.style.display = 'none';
+            }
+        }
+        
+        // Check if already logged in
+        if (localStorage.getItem('clayonApiKey')) {
+            window.location.href = '/clayon/pages/dashboard.html';
+        }
+    </script>
+</body>
+</html>

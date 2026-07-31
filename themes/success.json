@@ -1,0 +1,28 @@
+{
+  "name": "Success Emerald",
+  "description": "Lush emerald green theme signifying high performance & growth",
+  "is_light": false,
+  "colors": {
+    "primary": "#10b981",
+    "secondary": "#059669",
+    "primary-glow": "rgba(16, 185, 129, 0.4)",
+    "bg-main": "#02150f",
+    "card-bg": "rgba(16, 185, 129, 0.07)",
+    "card-hover": "rgba(16, 185, 129, 0.14)",
+    "text-primary": "#ecfdf5",
+    "text-muted": "#6ee7b7",
+    "text-number": "#d1fae5",
+    "border": "#047857",
+    "border-light": "rgba(16, 185, 129, 0.2)",
+    "divider": "rgba(16, 185, 129, 0.12)",
+    "glass-border": "rgba(16, 185, 129, 0.25)",
+    "accent-success": "#34d399",
+    "accent-warning": "#f59e0b",
+    "accent-error": "#ef4444",
+    "accent-info": "#3b82f6",
+    "accent-danger": "#dc2626",
+    "chart-1": "#10b981",
+    "chart-2": "#34d399",
+    "chart-3": "#059669"
+  }
+}

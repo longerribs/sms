@@ -1,0 +1,28 @@
+{
+  "name": "Clean Light",
+  "description": "Bright, ultra-readable daylight theme with sharp typography",
+  "is_light": true,
+  "colors": {
+    "primary": "#4f46e5",
+    "secondary": "#7c3aed",
+    "primary-glow": "rgba(79, 70, 229, 0.25)",
+    "bg-main": "#f8fafc",
+    "card-bg": "#ffffff",
+    "card-hover": "#f1f5f9",
+    "text-primary": "#0f172a",
+    "text-muted": "#475569",
+    "text-number": "#1e1b4b",
+    "border": "#cbd5e1",
+    "border-light": "rgba(0, 0, 0, 0.08)",
+    "divider": "rgba(0, 0, 0, 0.08)",
+    "glass-border": "rgba(0, 0, 0, 0.12)",
+    "accent-success": "#059669",
+    "accent-warning": "#d97706",
+    "accent-error": "#dc2626",
+    "accent-info": "#2563eb",
+    "accent-danger": "#b91c1c",
+    "chart-1": "#4f46e5",
+    "chart-2": "#7c3aed",
+    "chart-3": "#0284c7"
+  }
+}

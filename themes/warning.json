@@ -1,0 +1,28 @@
+{
+  "name": "Warning Amber",
+  "description": "Warm amber & golden glow for focused, high-alert monitoring",
+  "is_light": false,
+  "colors": {
+    "primary": "#f59e0b",
+    "secondary": "#ea580c",
+    "primary-glow": "rgba(245, 158, 11, 0.4)",
+    "bg-main": "#1a0e03",
+    "card-bg": "rgba(245, 158, 11, 0.08)",
+    "card-hover": "rgba(245, 158, 11, 0.15)",
+    "text-primary": "#fffbeb",
+    "text-muted": "#fcd34d",
+    "text-number": "#fef3c7",
+    "border": "#b45309",
+    "border-light": "rgba(245, 158, 11, 0.2)",
+    "divider": "rgba(245, 158, 11, 0.12)",
+    "glass-border": "rgba(245, 158, 11, 0.25)",
+    "accent-success": "#10b981",
+    "accent-warning": "#f59e0b",
+    "accent-error": "#ef4444",
+    "accent-info": "#3b82f6",
+    "accent-danger": "#dc2626",
+    "chart-1": "#f59e0b",
+    "chart-2": "#ea580c",
+    "chart-3": "#fbbf24"
+  }
+}

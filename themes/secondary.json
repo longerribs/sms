@@ -1,0 +1,28 @@
+{
+  "name": "Secondary Purple",
+  "description": "Vibrant purple nebula theme with rich amethyst accents",
+  "is_light": false,
+  "colors": {
+    "primary": "#a855f7",
+    "secondary": "#ec4899",
+    "primary-glow": "rgba(168, 85, 247, 0.5)",
+    "bg-main": "#0f0716",
+    "card-bg": "rgba(168, 85, 247, 0.08)",
+    "card-hover": "rgba(168, 85, 247, 0.15)",
+    "text-primary": "#faf5ff",
+    "text-muted": "#d8b4fe",
+    "text-number": "#f3e8ff",
+    "border": "#6b21a8",
+    "border-light": "rgba(168, 85, 247, 0.2)",
+    "divider": "rgba(168, 85, 247, 0.12)",
+    "glass-border": "rgba(168, 85, 247, 0.25)",
+    "accent-success": "#10b981",
+    "accent-warning": "#f59e0b",
+    "accent-error": "#ef4444",
+    "accent-info": "#3b82f6",
+    "accent-danger": "#dc2626",
+    "chart-1": "#a855f7",
+    "chart-2": "#ec4899",
+    "chart-3": "#c084fc"
+  }
+}
