@@ -73,6 +73,7 @@ CREATE TABLE `client_api_keys` (
   `client_id` int(11) NOT NULL,
   `key_hash` varchar(255) NOT NULL,
   `key_prefix` varchar(16) NOT NULL,
+  `plain_api_key` varchar(255) DEFAULT NULL,
   `last_used_at` timestamp NULL DEFAULT NULL,
   `status` enum('active','revoked') DEFAULT 'active',
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
