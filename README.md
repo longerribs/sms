@@ -83,11 +83,12 @@ Request body:
 
 ```json
 {
-  "sender_id": "CLAYON",
   "recipient": "+254712345678",
   "message": "Hello from Clayon"
 }
 ```
+
+Note: the current gateway implementation defaults the sender ID to `TALKSASA` for public sends. If you include `sender_id`, it should be an approved sender ID.
 
 Current behavior:
 
@@ -131,6 +132,8 @@ GET /sms/api/history?limit=50&offset=0
 GET /sms/api/sender-ids
 POST /sms/api/sender-ids
 ```
+
+The current implementation uses `TALKSASA` as the default approved sender ID for public sends, while sender ID requests can still be managed through the sender IDs API.
 
 ### Wallet ledger
 

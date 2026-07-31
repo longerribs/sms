@@ -105,11 +105,12 @@ Example:
 
 ```json
 {
-  "sender_id": "CLAYON",
   "recipient": "+254712345678",
   "message": "Hello World"
 }
 ```
+
+Note: the gateway currently defaults the sender ID to `TALKSASA` if `sender_id` is omitted.
 
 Current behavior:
 
