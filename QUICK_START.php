@@ -75,7 +75,8 @@ APP_URL=http://localhost/sms</pre>
         <pre>curl -X POST http://localhost/sms/api/send \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_API_KEY" \
-  -d '{"sender_id":"CLAYON","recipient":"+254712345678","message":"Hello"}'</pre>
+  -d '{"recipient":"+254712345678","message":"Hello"}'</pre>
+        <p>Note: the current gateway defaults the sender ID to <strong>TALKSASA</strong> when omitted.</p>
     </div>
 </div>
 </body>

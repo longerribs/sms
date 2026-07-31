@@ -71,11 +71,12 @@ curl -X POST http://localhost/sms/api/send \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer clay_xxx..." \
   -d '{
-    "sender_id": "TEST",
     "recipient": "+254123456789",
     "message": "Hello from Clayon!"
   }'
 ```
+
+> The gateway defaults the sender ID to `TALKSASA` when `sender_id` is omitted.
 
 #### Test balance
 
