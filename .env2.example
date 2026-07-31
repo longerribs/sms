@@ -1,0 +1,30 @@
+# Clayon SMS Reseller Platform Environment Configuration
+# Copy this file to .env2 and replace the placeholder values.
+# Do not commit your real credentials.
+
+# Application Environment
+APP_ENV=development
+APP_DEBUG=true
+APP_URL=http://localhost/sms
+
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=clayon_sms
+DB_USERNAME=root
+DB_PASSWORD=
+
+# TalkSasa Integration (SMS Provider)
+TALKSASA_API_KEY=your_talksasa_api_key_here
+TALKSASA_URL=https://bulksms.talksasa.com/api/v3/sms/send
+
+# M-Pesa API Configuration
+MPESA_CONSUMER_KEY=your_mpesa_consumer_key_here
+MPESA_CONSUMER_SECRET=your_mpesa_consumer_secret_here
+MPESA_SHORTCODE=your_mpesa_shortcode_here
+MPESA_TILL_NUMBER=your_mpesa_till_number_here
+MPESA_PASSKEY=your_mpesa_passkey_here
+
+# M-Pesa API URLs (Production)
+MPESA_AUTH_URL=https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials
+MPESA_STK_PUSH_URL=https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest
