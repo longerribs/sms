@@ -41,7 +41,7 @@ CREATE TABLE `audit_logs` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `clients`
+-- Table structure for table `clients` who use sms
 --
 
 CREATE TABLE `clients` (

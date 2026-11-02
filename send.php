@@ -321,7 +321,12 @@ $balance = $wallet ? (float)$wallet['balance_units'] : 0;
                     body: JSON.stringify(payload)
                 });
                 
-                const data = await res.json();
+                let data;
+                try {
+                    data = await res.json();
+                } catch (jsonErr) {
+                    throw new Error(`Server error (${res.status}). Please check server logs.`);
+                }
                 progressBar.style.width = '100%';
 
                 if (data.status === 'success' || data.success === true) {
@@ -347,9 +352,9 @@ $balance = $wallet ? (float)$wallet['balance_units'] : 0;
                 modalFooter.style.display = 'block';
 
             } catch (err) {
-                modalStatusContainer.innerHTML = '<div class="status-icon icon-error"><i class="fas fa-wifi"></i></div>';
-                modalTitle.innerText = "Network Error";
-                modalText.innerText = "Could not connect to the API. Please check your internet connection.";
+                modalStatusContainer.innerHTML = '<div class="status-icon icon-error"><i class="fas fa-exclamation-triangle"></i></div>';
+                modalTitle.innerText = "Error";
+                modalText.innerText = err.message || "Could not connect to the API. Please check your internet connection.";
                 modalFooter.style.display = 'block';
             }
         });

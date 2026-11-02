@@ -24,35 +24,91 @@ $period = $_GET['period'] ?? '7'; // 1, 7, 30 days
 $dateFrom = date('Y-m-d', strtotime("-$period days"));
 $dateTo = date('Y-m-d');
 
-// ════ SMS REPORT ════
-$smsStats = [];
+// ════ CLIENT PRICING & BOOKKEEPING RATE ════
+$stmt = $db->prepare("
+    SELECT c.plan_id, p.plan_name, p.provider_markup_type, p.markup_value 
+    FROM clients c
+    LEFT JOIN pricing_plans p ON c.plan_id = p.id
+    WHERE c.id = ?
+");
+$stmt->execute([$clientId]);
+$clientPlan = $stmt->fetch(PDO::FETCH_ASSOC);
+
+$markupValue = (float)($clientPlan['markup_value'] ?? 0);
+$markupType  = $clientPlan['provider_markup_type'] ?? 'percentage';
+
+$stmt = $db->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'PROVIDER_UNITS_PER_KES'");
+$stmt->execute();
+$providerRate = (float)($stmt->fetchColumn() ?: 2.0);
+
+// Client rate: Units received per 1 KES
+if ($markupType === 'percentage') {
+    $clientRate = $providerRate / (1 + ($markupValue / 100));
+} else {
+    $clientRate = $providerRate - $markupValue;
+}
+$clientRate = max(0.1, $clientRate);
+$costPerUnitKes = 1 / $clientRate; // Cost in KES per 1 Unit
+
+// ════ SMS REPORT & DELIVERY AGGREGATION ════
 $stmt = $db->prepare("
     SELECT 
         status,
-        COUNT(*) as count
+        delivery_status,
+        COUNT(*) as count,
+        COALESCE(SUM(COALESCE(NULLIF(final_cost, 0), estimated_cost)), 0) as units_used,
+        COALESCE(SUM(estimated_segments), 0) as segments_count
     FROM sms_requests 
     WHERE client_id = ? AND DATE(created_at) BETWEEN ? AND ?
-    GROUP BY status
+    GROUP BY status, delivery_status
 ");
 $stmt->execute([$clientId, $dateFrom, $dateTo]);
-$smsStats = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+$smsRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// SMS breakdown
-$pending = $smsStats['pending'] ?? 0;
-$accepted = $smsStats['accepted'] ?? 0;
-$completed = $smsStats['completed'] ?? 0;
-$failed = $smsStats['failed'] ?? 0;
-$totalSms = array_sum($smsStats);
+$totalSms = 0;
+$deliveredCount = 0;
+$failedCount = 0;
+$acceptedCount = 0;
+$pendingCount = 0;
+$totalUnitsUsed = 0.0;
+$totalSegments = 0;
 
-// Recent SMS list
+foreach ($smsRows as $row) {
+    $c = (int)$row['count'];
+    $totalSms += $c;
+    $totalUnitsUsed += (float)$row['units_used'];
+    $totalSegments += (int)$row['segments_count'];
+    
+    $deliv = strtolower(trim((string)$row['delivery_status']));
+    $st = strtolower(trim((string)$row['status']));
+    
+    if ($deliv === 'delivered' || $st === 'completed') {
+        $deliveredCount += $c;
+    } elseif ($deliv === 'failed' || $deliv === 'undelivered' || $st === 'failed') {
+        $failedCount += $c;
+    } elseif ($st === 'accepted' || $deliv === 'accepted') {
+        $acceptedCount += $c;
+    } else {
+        $pendingCount += $c;
+    }
+}
+
+// Delivery Rate %
+$deliveryRate = $totalSms > 0 ? round(($deliveredCount / $totalSms) * 100, 1) : 0.0;
+
+// Amount spent on SMS dispatches in KES
+$amountSpentSms = $totalUnitsUsed * $costPerUnitKes;
+
+// Recent SMS list with units and cost
 $stmt = $db->prepare("
     SELECT id, request_reference, recipient, estimated_segments, 
+           estimated_cost, final_cost,
            COALESCE(NULLIF(delivery_status, 'pending'), status) AS status, 
            delivery_status, provider_message_id, created_at
     FROM sms_requests 
     WHERE client_id = ? AND DATE(created_at) BETWEEN ? AND ?
     ORDER BY created_at DESC
-    LIMIT 20
+    LIMIT 30
 ");
 $stmt->execute([$clientId, $dateFrom, $dateTo]);
 $smsList = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -76,7 +132,7 @@ $walletBreakdown = [];
 $totalUnits = 0;
 foreach ($walletStats as $row) {
     $walletBreakdown[$row['entry_type']] = [
-        'count' => $row['count'],
+        'count' => (int)$row['count'],
         'total' => (float)$row['total']
     ];
     if ($row['entry_type'] !== 'reserved') {
@@ -84,13 +140,29 @@ foreach ($walletStats as $row) {
     }
 }
 
+$debitUnits = (float)($walletBreakdown['debit']['total'] ?? 0);
+$creditUnits = (float)($walletBreakdown['credit']['total'] ?? 0);
+$reservedUnits = (float)($walletBreakdown['reserved']['total'] ?? 0);
+$amountSpentWallet = $debitUnits * $costPerUnitKes;
+$amountDepositedWallet = $creditUnits * $costPerUnitKes;
+
+// Actual cash bought from transactions table (M-Pesa payments)
+$stmt = $db->prepare("
+    SELECT COALESCE(SUM(amount), 0)
+    FROM mpesa_transactions
+    WHERE client_id = ? AND status = 'completed' AND DATE(created_at) BETWEEN ? AND ?
+");
+$stmt->execute([$clientId, $dateFrom, $dateTo]);
+$actualCashBought = (float)$stmt->fetchColumn();
+$displayAmountBought = $actualCashBought > 0 ? $actualCashBought : $amountDepositedWallet;
+
 // Recent transactions
 $stmt = $db->prepare("
     SELECT id, entry_type, units, reference, note, created_at
     FROM wallet_ledger 
     WHERE client_id = ? AND DATE(created_at) BETWEEN ? AND ?
     ORDER BY created_at DESC
-    LIMIT 20
+    LIMIT 30
 ");
 $stmt->execute([$clientId, $dateFrom, $dateTo]);
 $walletList = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -99,6 +171,7 @@ $walletList = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $stmt = $db->prepare("SELECT balance_units FROM wallet_accounts WHERE client_id = ?");
 $stmt->execute([$clientId]);
 $balance = (float)($stmt->fetchColumn() ?? 0);
+$balanceKes = $balance * $costPerUnitKes;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -289,31 +362,67 @@ $balance = (float)($stmt->fetchColumn() ?? 0);
             </p>
 
             <!-- Stats Grid -->
-            <div class="stat-grid">
+            <div class="stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
                 <div class="stat-box">
                     <div class="stat-box-label">Total Sent</div>
                     <div class="stat-box-value"><?php echo number_format($totalSms); ?></div>
-                    <div class="stat-box-sub">messages</div>
+                    <div class="stat-box-sub"><?php echo number_format($totalSegments); ?> total segments</div>
                 </div>
                 <div class="stat-box">
-                    <div class="stat-box-label" style="color: var(--accent-success);">Completed</div>
-                    <div class="stat-box-value" style="color: var(--accent-success);"><?php echo number_format($completed); ?></div>
-                    <div class="stat-box-sub"><?php echo $totalSms > 0 ? round(($completed/$totalSms)*100, 1) : 0; ?>%</div>
+                    <div class="stat-box-label" style="color: var(--primary);">Delivery Rate</div>
+                    <div class="stat-box-value" style="color: <?php echo $deliveryRate >= 80 ? 'var(--accent-success)' : ($deliveryRate >= 50 ? 'var(--accent-warning)' : 'var(--accent-error)'); ?>;">
+                        <?php echo $deliveryRate; ?>%
+                    </div>
+                    <div class="stat-box-sub"><?php echo number_format($deliveredCount); ?> of <?php echo number_format($totalSms); ?> delivered</div>
                 </div>
                 <div class="stat-box">
-                    <div class="stat-box-label" style="color: var(--chart-3);">Accepted</div>
-                    <div class="stat-box-value" style="color: var(--chart-3);"><?php echo number_format($accepted); ?></div>
-                    <div class="stat-box-sub"><?php echo $totalSms > 0 ? round(($accepted/$totalSms)*100, 1) : 0; ?>%</div>
+                    <div class="stat-box-label" style="color: #60a5fa;">Units Used</div>
+                    <div class="stat-box-value" style="color: #60a5fa;">
+                        <?php echo number_format($totalUnitsUsed, 2); ?>
+                    </div>
+                    <div class="stat-box-sub">SMS credits consumed</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-box-label" style="color: var(--accent-success);">Delivered</div>
+                    <div class="stat-box-value" style="color: var(--accent-success);"><?php echo number_format($deliveredCount); ?></div>
+                    <div class="stat-box-sub"><?php echo $totalSms > 0 ? round(($deliveredCount/$totalSms)*100, 1) : 0; ?>% success</div>
                 </div>
                 <div class="stat-box">
                     <div class="stat-box-label" style="color: var(--accent-error);">Failed</div>
-                    <div class="stat-box-value" style="color: var(--accent-error);"><?php echo number_format($failed); ?></div>
-                    <div class="stat-box-sub"><?php echo $totalSms > 0 ? round(($failed/$totalSms)*100, 1) : 0; ?>%</div>
+                    <div class="stat-box-value" style="color: var(--accent-error);"><?php echo number_format($failedCount); ?></div>
+                    <div class="stat-box-sub"><?php echo $totalSms > 0 ? round(($failedCount/$totalSms)*100, 1) : 0; ?>% failed</div>
+                </div>
+            </div>
+
+            <!-- Delivery Performance & Bookkeeping Summary Card -->
+            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                        <span style="font-weight: 600; color: var(--text-primary); font-size: 0.95rem;">Delivery Reliability & Consumption Progress</span>
+                    </div>
+                    <span style="font-weight: 700; color: <?php echo $deliveryRate >= 80 ? 'var(--accent-success)' : ($deliveryRate >= 50 ? 'var(--accent-warning)' : 'var(--accent-error)'); ?>; font-size: 1.05rem;">
+                        <?php echo $deliveryRate; ?>% Delivery Success
+                    </span>
+                </div>
+                <div style="height: 10px; width: 100%; background: rgba(255,255,255,0.06); border-radius: 5px; overflow: hidden; display: flex;">
+                    <div style="height: 100%; width: <?php echo $deliveryRate; ?>%; background: linear-gradient(90deg, var(--primary), var(--accent-success));" title="Delivered: <?php echo $deliveryRate; ?>%"></div>
+                    <?php if ($totalSms > 0 && $acceptedCount > 0): ?>
+                    <div style="height: 100%; width: <?php echo round(($acceptedCount/$totalSms)*100, 1); ?>%; background: var(--chart-3);" title="Accepted / In Flight"></div>
+                    <?php endif; ?>
+                    <?php if ($totalSms > 0 && $failedCount > 0): ?>
+                    <div style="height: 100%; width: <?php echo round(($failedCount/$totalSms)*100, 1); ?>%; background: var(--accent-error);" title="Failed"></div>
+                    <?php endif; ?>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; font-size: 0.85rem; color: var(--text-muted); flex-wrap: wrap; gap: 0.75rem;">
+                    <span><i class="fas fa-circle" style="color: var(--accent-success); font-size: 0.55rem; margin-right: 0.25rem;"></i> Confirmed Delivered: <?php echo number_format($deliveredCount); ?></span>
+                    <span><i class="fas fa-circle" style="color: var(--chart-3); font-size: 0.55rem; margin-right: 0.25rem;"></i> Accepted / In-Flight: <?php echo number_format($acceptedCount); ?></span>
+                    <span><i class="fas fa-circle" style="color: var(--accent-error); font-size: 0.55rem; margin-right: 0.25rem;"></i> Failed / Undelivered: <?php echo number_format($failedCount); ?></span>
+                    <span><i class="fas fa-bolt" style="color: #60a5fa; margin-right: 0.25rem;"></i> Total Consumed: <strong><?php echo number_format($totalUnitsUsed, 2); ?> Units</strong></span>
                 </div>
             </div>
 
             <!-- SMS Table -->
-            <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Recent Messages</h3>
+            <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Recent Messages & Delivery Status</h3>
             <?php if (empty($smsList)): ?>
                 <div class="empty-state">
                     <i class="fas fa-envelope-circle-check"></i>
@@ -327,22 +436,28 @@ $balance = (float)($stmt->fetchColumn() ?? 0);
                                 <th>Reference</th>
                                 <th>Recipient</th>
                                 <th>Segments</th>
+                                <th>Units Used</th>
                                 <th>Status</th>
                                 <th>Provider ID</th>
                                 <th>Sent</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($smsList as $sms): ?>
+                            <?php foreach ($smsList as $sms): 
+                                $costUnits = (float)($sms['final_cost'] > 0 ? $sms['final_cost'] : $sms['estimated_cost']);
+                            ?>
                             <tr>
                                 <td style="font-family: monospace; font-size: 0.85rem;">
                                     <?php echo substr($sms['request_reference'], 0, 12); ?>...
                                 </td>
                                 <td><?php echo htmlspecialchars($sms['recipient']); ?></td>
-                                <td><?php echo $sms['estimated_segments']; ?></td>
+                                <td><?php echo $sms['estimated_segments']; ?> seg</td>
+                                <td style="font-weight: 600; color: #60a5fa;">
+                                    <?php echo number_format($costUnits, 2); ?> u
+                                </td>
                                 <td>
-                                    <span class="status-badge status-<?php echo $sms['status']; ?>">
-                                        <?php echo $sms['status']; ?>
+                                    <span class="status-badge status-<?php echo htmlspecialchars($sms['status']); ?>">
+                                        <?php echo htmlspecialchars($sms['status']); ?>
                                     </span>
                                 </td>
                                 <td style="font-family: monospace; font-size: 0.8rem;">
@@ -360,49 +475,54 @@ $balance = (float)($stmt->fetchColumn() ?? 0);
         <!-- ════ WALLET REPORT ════ -->
         <?php elseif ($tab === 'wallet'): ?>
         <div class="glass-card">
-            <h2 style="margin-bottom: 1.5rem;">Wallet Activity Report</h2>
+            <h2 style="margin-bottom: 1.5rem;">Wallet Activity & Ledger Report</h2>
             <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem;">
                 Period: <?php echo date('M d, Y', strtotime($dateFrom)); ?> — <?php echo date('M d, Y', strtotime($dateTo)); ?>
             </p>
 
             <!-- Stats Grid -->
-            <div class="stat-grid">
+            <div class="stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
                 <div class="stat-box">
                     <div class="stat-box-label">Current Balance</div>
                     <div class="stat-box-value" style="color: var(--primary);"><?php echo number_format($balance, 2); ?></div>
-                    <div class="stat-box-sub">units</div>
+                    <div class="stat-box-sub">units available</div>
                 </div>
-                <?php if (isset($walletBreakdown['credit'])): ?>
                 <div class="stat-box">
-                    <div class="stat-box-label" style="color: #10b981;">Total Credits</div>
-                    <div class="stat-box-value" style="color: #10b981;">
-                        +<?php echo number_format($walletBreakdown['credit']['total'], 2); ?>
-                    </div>
-                    <div class="stat-box-sub"><?php echo $walletBreakdown['credit']['count']; ?> transactions</div>
-                </div>
-                <?php endif; ?>
-                <?php if (isset($walletBreakdown['debit'])): ?>
-                <div class="stat-box">
-                    <div class="stat-box-label" style="color: #f87171;">Total Debits</div>
+                    <div class="stat-box-label" style="color: #f87171;">Units Used (Debits)</div>
                     <div class="stat-box-value" style="color: #f87171;">
-                        -<?php echo number_format($walletBreakdown['debit']['total'], 2); ?>
+                        -<?php echo number_format($debitUnits, 2); ?>
                     </div>
-                    <div class="stat-box-sub"><?php echo $walletBreakdown['debit']['count']; ?> transactions</div>
+                    <div class="stat-box-sub"><?php echo (int)($walletBreakdown['debit']['count'] ?? 0); ?> dispatches</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-box-label" style="color: #f59e0b;">Amount Spent</div>
+                    <div class="stat-box-value" style="color: #f59e0b;">
+                        KES <?php echo number_format($amountSpentWallet, 2); ?>
+                    </div>
+                    <div class="stat-box-sub">total debited value</div>
+                </div>
+                <?php if (isset($walletBreakdown['credit']) || $displayAmountBought > 0): ?>
+                <div class="stat-box">
+                    <div class="stat-box-label" style="color: #10b981;">Amount Bought</div>
+                    <div class="stat-box-value" style="color: #10b981;">
+                        KES <?php echo number_format($displayAmountBought, 2); ?>
+                    </div>
+                    <div class="stat-box-sub">+<?php echo number_format($creditUnits, 2); ?> units credited</div>
                 </div>
                 <?php endif; ?>
-                <?php if (isset($walletBreakdown['reserved'])): ?>
+                <?php if ($reservedUnits > 0): ?>
                 <div class="stat-box">
-                    <div class="stat-box-label" style="color: #d1d5db;">Reserved</div>
+                    <div class="stat-box-label" style="color: #d1d5db;">Reserved Units</div>
                     <div class="stat-box-value" style="color: #d1d5db;">
-                        <?php echo number_format($walletBreakdown['reserved']['total'], 2); ?>
+                        <?php echo number_format($reservedUnits, 2); ?>
                     </div>
-                    <div class="stat-box-sub">pending messages</div>
+                    <div class="stat-box-sub">pending delivery</div>
                 </div>
                 <?php endif; ?>
             </div>
 
             <!-- Wallet Table -->
-            <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Transaction History</h3>
+            <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Transaction History & Value</h3>
             <?php if (empty($walletList)): ?>
                 <div class="empty-state">
                     <i class="fas fa-credit-card"></i>
@@ -415,22 +535,29 @@ $balance = (float)($stmt->fetchColumn() ?? 0);
                             <tr>
                                 <th>Type</th>
                                 <th>Units</th>
+                                <th>Value (KES)</th>
                                 <th>Reference</th>
                                 <th>Note</th>
                                 <th>Date</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($walletList as $tx): ?>
+                            <?php foreach ($walletList as $tx): 
+                                $txUnits = (float)$tx['units'];
+                                $txKes = $txUnits * $costPerUnitKes;
+                            ?>
                             <tr>
                                 <td>
-                                    <span class="status-badge status-<?php echo $tx['entry_type']; ?>">
-                                        <?php echo $tx['entry_type']; ?>
+                                    <span class="status-badge status-<?php echo htmlspecialchars($tx['entry_type']); ?>">
+                                        <?php echo htmlspecialchars($tx['entry_type']); ?>
                                     </span>
                                 </td>
                                 <td style="font-weight: 600; color: <?php echo in_array($tx['entry_type'], ['credit', 'refund']) ? '#10b981' : '#f87171'; ?>;">
                                     <?php echo in_array($tx['entry_type'], ['credit', 'refund']) ? '+' : '−'; ?>
-                                    <?php echo number_format($tx['units'], 2); ?>
+                                    <?php echo number_format($txUnits, 2); ?>
+                                </td>
+                                <td style="color: #f59e0b; font-weight: 500;">
+                                    KES <?php echo number_format($txKes, 2); ?>
                                 </td>
                                 <td style="font-family: monospace; font-size: 0.85rem;">
                                     <?php echo htmlspecialchars(substr($tx['reference'] ?? 'N/A', 0, 15)); ?>

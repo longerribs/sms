@@ -73,7 +73,7 @@ if ($newKey) {
 // Base URL configuration
 $appBaseUrl = rtrim(clayon_env('APP_URL', 'http://localhost/sms'), '/');
 $sendSmsEndpoint = $appBaseUrl . '/api/send.php';
-$balanceEndpoint = $appBaseUrl . '/api/v1/balance.php';
+$balanceEndpoint = $appBaseUrl . '/api/balance.php';
 $historyEndpoint = $appBaseUrl . '/api/v1/history.php';
 
 // Combined Telemetry & Overview Calculations
@@ -751,6 +751,109 @@ $refreshedAt = date('H:i:s T');
 }</pre>
                 </div>
 
+                <hr style="border: 0; border-top: 1px solid var(--border-light); margin: 2.5rem 0 2rem 0;">
+
+                <!-- Endpoint 2: Check Wallet Balance & Profile -->
+                <h4 style="margin-top: 2rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem;">
+                    <span style="background: var(--primary); color: white; padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.8rem;">GET</span>
+                    2. Check Wallet Balance & Profile Units
+                </h4>
+                <p style="margin-top: 0.4rem; color: var(--text-muted); font-size: 0.9rem;">
+                    Retrieve real-time available and reserved SMS credit units for the authenticated account profile.
+                </p>
+                <div class="code-container">
+                    <span id="ep-balance" style="color: var(--primary); font-weight: bold;"><?php echo htmlspecialchars($balanceEndpoint); ?></span>
+                    <button class="copy-btn" onclick="copyTextToClipboard('<?php echo htmlspecialchars($balanceEndpoint); ?>', 'Endpoint URL copied!')"><i class="fas fa-copy"></i> Copy URL</button>
+                </div>
+
+                <h4 style="margin-top: 1.5rem; color: var(--text-primary);">Headers</h4>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border-light); text-align: left;">
+                            <th style="padding: 0.6rem 0; color: var(--text-primary);">Header</th>
+                            <th style="padding: 0.6rem 0; color: var(--text-primary);">Value</th>
+                            <th style="padding: 0.6rem 0; color: var(--text-primary);">Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid var(--border-light);">
+                            <td style="padding: 0.6rem 0;"><code>Authorization</code></td>
+                            <td style="padding: 0.6rem 0;"><code>Bearer sk_live_...</code></td>
+                            <td style="padding: 0.6rem 0;">Your active API secret key. Automatically identifies the client profile and wallet.</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-light);">
+                            <td style="padding: 0.6rem 0;"><code>Accept</code></td>
+                            <td style="padding: 0.6rem 0;"><code>application/json</code></td>
+                            <td style="padding: 0.6rem 0;">Response payload format.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h4 style="margin-top: 1.5rem; color: var(--text-primary);">Request Parameters</h4>
+                <p style="margin-top: 0.4rem; color: var(--text-muted); font-size: 0.9rem;">
+                    None. No query parameters or request body are required.
+                </p>
+
+                <h4 style="margin-top: 1.5rem; color: var(--text-primary);">Example Request (cURL)</h4>
+                <div class="code-container">
+                    <pre style="color: #60a5fa;">curl -X GET <?php echo htmlspecialchars($balanceEndpoint); ?> \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Accept: application/json"</pre>
+                </div>
+
+                <h4 style="margin-top: 1.5rem; color: var(--text-primary);">Example Success Response (HTTP 200 OK)</h4>
+                <div class="code-container">
+                    <pre style="color: #34d399;">{
+  "status": "success",
+  "message": "Wallet balance retrieved",
+  "data": {
+    "balance_units": 250.0,
+    "reserved_units": 10.0,
+    "available_units": 240.0,
+    "currency": "KES",
+    "updated_at": "2026-11-02 20:08:15"
+  }
+}</pre>
+                </div>
+
+                <h4 style="margin-top: 1.5rem; color: var(--text-primary);">Response Data Fields</h4>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border-light); text-align: left;">
+                            <th style="padding: 0.6rem 0; color: var(--text-primary);">Field</th>
+                            <th style="padding: 0.6rem 0; color: var(--text-primary);">Type</th>
+                            <th style="padding: 0.6rem 0; color: var(--text-primary);">Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px solid var(--border-light);">
+                            <td style="padding: 0.6rem 0;"><code>balance_units</code></td>
+                            <td style="padding: 0.6rem 0;">Float</td>
+                            <td style="padding: 0.6rem 0;">Total credited SMS units in the account wallet.</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-light);">
+                            <td style="padding: 0.6rem 0;"><code>reserved_units</code></td>
+                            <td style="padding: 0.6rem 0;">Float</td>
+                            <td style="padding: 0.6rem 0;">Units temporarily held for messages pending provider delivery confirmation.</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-light);">
+                            <td style="padding: 0.6rem 0;"><code>available_units</code></td>
+                            <td style="padding: 0.6rem 0;">Float</td>
+                            <td style="padding: 0.6rem 0;">Net usable units currently available to dispatch new SMS (<code>balance_units - reserved_units</code>).</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-light);">
+                            <td style="padding: 0.6rem 0;"><code>currency</code></td>
+                            <td style="padding: 0.6rem 0;">String</td>
+                            <td style="padding: 0.6rem 0;">Billing currency code (defaults to <code>KES</code>).</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border-light);">
+                            <td style="padding: 0.6rem 0;"><code>updated_at</code></td>
+                            <td style="padding: 0.6rem 0;">String</td>
+                            <td style="padding: 0.6rem 0;">Timestamp of when this balance snapshot was calculated.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
                 <!-- HTTP Error Table -->
                 <h4 style="margin-top: 2rem; color: var(--text-primary);">HTTP Response Status Codes</h4>
                 <table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem; color: var(--text-muted); font-size: 0.9rem;">
@@ -871,6 +974,31 @@ payload = {
 response = requests.post(url, json=payload, headers=headers)
 print(response.json())</pre>
                     <button class="copy-btn" onclick="copySnippetCode('python-code')"><i class="fas fa-copy"></i> Copy Snippet</button>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border-light); margin: 2rem 0;">
+
+                <!-- Check Balance Snippet -->
+                <h4 style="margin-top: 1rem; color: var(--text-primary);">Check Balance (cURL)</h4>
+                <div class="code-container">
+                    <pre id="curl-balance-code" style="color: #60a5fa;">curl -X GET <?php echo htmlspecialchars($balanceEndpoint); ?> \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Accept: application/json"</pre>
+                    <button class="copy-btn" onclick="copySnippetCode('curl-balance-code')"><i class="fas fa-copy"></i> Copy Snippet</button>
+                </div>
+
+                <h4 style="margin-top: 1.5rem; color: var(--text-primary);">Check Balance (JavaScript Fetch)</h4>
+                <div class="code-container">
+                    <pre id="js-balance-code" style="color: #facc15;">const response = await fetch("<?php echo htmlspecialchars($balanceEndpoint); ?>", {
+  method: "GET",
+  headers: {
+    "Authorization": "Bearer YOUR_API_KEY",
+    "Accept": "application/json"
+  }
+});
+const wallet = await response.json();
+console.log(`Available units: ${wallet.data.available_units}`);</pre>
+                    <button class="copy-btn" onclick="copySnippetCode('js-balance-code')"><i class="fas fa-copy"></i> Copy Snippet</button>
                 </div>
             </div>
         </div>

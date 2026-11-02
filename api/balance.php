@@ -24,8 +24,6 @@ try {
     $available = $wallet['balance_units'] - $wallet['reserved_units'];
 
     Response::success([
-        'client_id' => $clientId,
-        'client_name' => $client['name'],
         'balance_units' => floatval($wallet['balance_units']),
         'reserved_units' => floatval($wallet['reserved_units']),
         'available_units' => floatval($available),

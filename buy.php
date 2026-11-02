@@ -397,7 +397,15 @@ $clientRate = max(0.1, $clientRate);
                     body: JSON.stringify(payload)
                 });
 
-                const data = await res.json();
+                let data;
+                const rawText = await res.text();
+
+                try {
+                    data = rawText ? JSON.parse(rawText) : {};
+                } catch (parseErr) {
+                    console.error('STK response parse error:', parseErr, rawText);
+                    throw new Error(rawText || 'Invalid response from payment server.');
+                }
 
                 if (data.status === 'success') {
                     paymentModal.style.display = 'flex';
@@ -430,13 +438,15 @@ $clientRate = max(0.1, $clientRate);
                     btn.innerHTML = '<i class="fas fa-mobile-alt"></i> Pay with M-Pesa';
                 }
             } catch (err) {
+                console.error('STK request failed:', err);
+                const message = err && err.message ? err.message : 'Network error. Please check your connection and try again.';
                 statusMsg.style.display = 'block';
                 statusMsg.style.background = 'rgba(239, 68, 68, 0.1)';
                 statusMsg.style.border = '1px solid rgba(239,68,68,0.3)';
                 statusMsg.style.color = 'var(--accent-error)';
                 statusMsg.style.padding = '0.75rem 1rem';
                 statusMsg.style.borderRadius = '10px';
-                statusMsg.innerText = 'Network error. Please check your connection and try again.';
+                statusMsg.innerText = message;
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-mobile-alt"></i> Pay with M-Pesa';
             }

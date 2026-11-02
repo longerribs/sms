@@ -141,21 +141,81 @@ class SMSService
 
         $jsonPayload = json_encode($payload);
 
-        $ch = curl_init($this->talksasa_url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);
-        curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $this->talksasa_key,
-            'Accept: application/json'
-        ]);
+        $caBundle = 'C:/xammp/apache/bin/curl-ca-bundle.crt';
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
+        if (function_exists('curl_init')) {
+            $ch = curl_init($this->talksasa_url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);
+            curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $this->talksasa_key,
+                'Accept: application/json'
+            ]);
+            if (file_exists($caBundle)) {
+                curl_setopt($ch, CURLOPT_CAINFO, $caBundle);
+            } else {
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+            }
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+        } else {
+            $headers = [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $this->talksasa_key,
+                'Accept: application/json'
+            ];
+            $sslOptions = [
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+            ];
+            $caCandidates = [
+                'C:/xammp/apache/bin/curl-ca-bundle.crt',
+                'C:/xammp/perl/vendor/lib/Mozilla/CA/cacert.pem',
+                ini_get('openssl.cafile'),
+                ini_get('curl.cainfo')
+            ];
+            $caFound = false;
+            foreach ($caCandidates as $ca) {
+                if (!empty($ca) && file_exists($ca)) {
+                    $sslOptions['cafile'] = $ca;
+                    $caFound = true;
+                    break;
+                }
+            }
+            if (!$caFound) {
+                $sslOptions['verify_peer'] = false;
+                $sslOptions['verify_peer_name'] = false;
+            }
+
+            $context = stream_context_create([
+                'http' => [
+                    'method' => 'POST',
+                    'header' => implode("\r\n", $headers),
+                    'content' => $jsonPayload,
+                    'timeout' => $timeout,
+                    'ignore_errors' => true
+                ],
+                'ssl' => $sslOptions
+            ]);
+
+            $response = @file_get_contents($this->talksasa_url, false, $context);
+            $httpCode = 0;
+            if (isset($http_response_header) && is_array($http_response_header)) {
+                foreach ($http_response_header as $hdr) {
+                    if (preg_match('#HTTP/\S+\s+(\d+)#', $hdr, $m)) {
+                        $httpCode = (int)$m[1];
+                    }
+                }
+            }
+            $error = ($response === false) ? 'Failed to connect to TalkSasa gateway' : '';
+        }
 
         $this->logAttempt($smsRequestId, $attemptNo, $jsonPayload, $response, $httpCode, $error);
 
