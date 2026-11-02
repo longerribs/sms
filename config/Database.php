@@ -61,7 +61,14 @@ class Database {
      * Initialize the database schema
      */
     public function initializeSchema() {
-        $schema = file_get_contents(__DIR__ . '/../sql/schema.sql');
+        $schemaFile = __DIR__ . '/../sql/sms_clayon_sms.sql';
+        if (!file_exists($schemaFile)) {
+            $schemaFile = __DIR__ . '/../sql/schema.sql';
+        }
+        if (!file_exists($schemaFile)) {
+            throw new Exception("No schema SQL file found in sql/ directory.");
+        }
+        $schema = file_get_contents($schemaFile);
         $statements = array_filter(
             array_map('trim', preg_split('/;[\s\n]+/', $schema))
         );
