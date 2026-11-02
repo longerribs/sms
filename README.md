@@ -1,220 +1,226 @@
 # Clayon SMS Reseller Platform
 
-A production-ready SMS reseller platform for sending messages through the TalkSasa gateway. The current implementation is configured for the local project root in this workspace and uses a database-driven queue plus wallet reservations before provider confirmation.
+A production-ready SMS reseller platform for sending messages through the TalkSasa gateway with M-Pesa Daraja wallet top-ups. Features database-driven queue processing, unit reservations, automated delivery reports, developer documentation portal, and zero-dependency HTTP stream fallbacks.
 
 ## Overview
 
-Clayon manages:
+Clayon provides a complete SMS reseller infrastructure:
 
-- Client accounts and API key authentication
-- Wallet balances, reserved units, and ledger history
-- SMS request creation and queue-based processing
-- Sender ID approvals and pricing plans
-- M-Pesa STK push payments and callbacks
+- **Client Management & Security**: API key authentication (`Bearer YOUR_API_KEY`), bcrypt password hashing, and role-based access.
+- **Wallet & Billing Engine**: Balance tracking with unit reservation before send, debit upon provider acceptance, and immutable ledger audit trails.
+- **Resilient SMS Gateway**: Dual-engine HTTP dispatch (`curl` with automatic fallback to native PHP stream contexts + OpenSSL CA verification) guaranteeing delivery on servers where the PHP curl extension is unavailable.
+- **Automated M-Pesa Top-Up**: Daraja STK Push with dynamic tunnel detection (works seamlessly across ngrok restarts) and instant wallet crediting via webhooks.
+- **Developer API & Portal**: Comprehensive interactive documentation with live endpoint testing and copy-paste code snippets for cURL, PHP, Python, and Node.js.
+- **Analytics & Reporting**: Delivery rates, SMS logs, provider tracking IDs, and downloadable transaction history.
 
-## Project structure
+---
+
+## Project Structure
 
 ```text
-api/                 # REST endpoints
-callback/            # Payment and delivery callbacks
-config/              # DB, auth, response, and validation classes
-pages/               # Frontend pages
-setup/               # Bootstrap and installation scripts
-src/                 # SMS, queue, wallet, pricing, worker logic
-sql/                 # Database schema
-bootstrap.php        # App bootstrap
-index.php            # Entry page
+api/                     # REST API endpoints
+  ├── balance.php        # Sanitized wallet balance query (API key)
+  ├── send.php           # Public SMS dispatch endpoint
+  └── v1/
+      ├── balance.php    # Session-based balance endpoint
+      ├── check_payment.php # Polls M-Pesa payment status
+      ├── send_sms.php   # Internal SMS send API
+      └── stk_push.php   # M-Pesa Daraja STK Push initiator
+callback.php             # M-Pesa Daraja webhook entry point
+dlr.php                  # Delivery Report (DLR) webhook
+buy.php                  # Wallet top-up page with real-time STK modal
+send.php                 # SMS composer and dispatch dashboard
+reports.php              # Analytics, delivery rates, and ledger
+developer.php            # Interactive developer API documentation
+config/                  # Database, Auth, Response, and Validator classes
+src/                     # SMSService, QueueService, WalletService, PaymentCallback
+sql/                     # Database schemas and seed data
+bootstrap.php            # Core bootstrap and environment loading
+env_loader.php           # Standalone .env2 file loader
 ```
 
-## Quick start
+---
 
-### 1. Create the database and seed the default data
+## Quick Start
+
+### 1. Database Initialization
+
+Import the database schema using MySQL CLI or phpMyAdmin:
 
 ```bash
-php setup/run-all-setup.php
+mysql -u root -p clayon_sms < sql/sms_clayon_sms.sql
 ```
 
-This creates the `clayon_sms` database, initializes the schema, creates the admin account, seeds pricing plans, and generates an admin API key.
+### 2. Configure Environment Variables
 
-### 2. Configure environment values
-
-Create or update `.env2` in the project root with at least:
+Create or update `.env2` in the project root:
 
 ```env
+# Application Environment
+APP_ENV=development
+APP_DEBUG=true
+APP_URL=https://your-domain-or-ngrok.ngrok-free.app/sms
+
+# Database Configuration
 DB_HOST=localhost
 DB_PORT=3306
-DB_DATABASE=clayon_sms
+DB_DATABASE=sms_clayon_sms
 DB_USERNAME=root
 DB_PASSWORD=
-TALKSASA_API_KEY=your_api_key_here
-APP_URL=http://localhost/sms
+
+# TalkSasa Integration (SMS Provider)
+TALKSASA_API_KEY="your_talksasa_api_key_here"
+TALKSASA_URL=https://bulksms.talksasa.com/api/v3/sms/send
+
+# M-Pesa Daraja Configuration (STK Push)
+MPESA_CONSUMER_KEY=your_consumer_key
+MPESA_CONSUMER_SECRET=your_consumer_secret
+MPESA_SHORTCODE=your_business_shortcode
+MPESA_TILL_NUMBER=your_till_number
+MPESA_PASSKEY=your_passkey
+MPESA_AUTH_URL=https://api.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials
+MPESA_STK_PUSH_URL=https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest
 ```
 
-### 3. Run the queue worker
+### 3. Background Queue Worker (Optional)
 
-Add this to your crontab so pending SMS jobs are processed:
+For high-volume bulk campaigns, schedule the background worker via crontab or Windows Task Scheduler:
 
 ```bash
-* * * * * php /full/path/to/sms/src/Worker.php >> /path/to/logs/worker.log 2>&1
+* * * * * php /path/to/sms/src/Worker.php >> /path/to/logs/worker.log 2>&1
 ```
 
-### 4. Open the dashboard
+---
 
-- Login page: http://localhost/sms/pages/login.html
-- Dashboard: http://localhost/sms/pages/dashboard.html
-- Admin UI: http://localhost/sms/admin/dashboard.php
+## API Reference
 
-## API reference
-
-All endpoints require a Bearer token.
+All Developer API endpoints require authentication via Bearer token:
 
 ```http
-Authorization: Bearer clay_xxx...
+Authorization: Bearer YOUR_API_KEY
+Accept: application/json
 ```
 
-### Send SMS
+### 1. Check Wallet Balance
 
-```bash
-POST /sms/api/send
-Content-Type: application/json
+```http
+GET /sms/api/balance.php
 ```
 
-Request body:
-
-```json
-{
-  "recipient": "+254712345678",
-  "message": "Hello from Clayon"
-}
-```
-
-Note: the current gateway implementation defaults the sender ID to `TALKSASA` for public sends. If you include `sender_id`, it should be an approved sender ID.
-
-Current behavior:
-
-- The request is created as `pending`
-- Units are reserved, not debited immediately
-- A successful provider response debits the wallet later
-- The API returns `202 Accepted` for queued requests
-
-Example response:
+#### Example Response (HTTP 200 OK)
+Returns sanitized wallet balance data with no internal primary keys or profile identifiers:
 
 ```json
 {
   "status": "success",
+  "message": "Wallet balance retrieved",
   "data": {
-    "request_id": 12,
-    "reference": "req_123456789",
-    "recipient": "+254712345678",
+    "balance_units": 63.0,
+    "reserved_units": 0.0,
+    "available_units": 63.0,
+    "currency": "KES",
+    "updated_at": "2026-11-02 22:18:37"
+  },
+  "timestamp": "2026-11-02 22:18:37"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `balance_units` | Float | Total credited units in the wallet |
+| `reserved_units` | Float | Units temporarily held for pending sends |
+| `available_units` | Float | Usable units available for new messages |
+| `currency` | String | Billing currency code (`KES`) |
+| `updated_at` | String | Timestamp of balance snapshot |
+
+---
+
+### 2. Send SMS
+
+```http
+POST /sms/api/send.php
+Content-Type: application/json
+```
+
+#### Request Body
+```json
+{
+  "recipient": "254712345678",
+  "message": "Hello from Clayon SMS",
+  "sender_id": "TALKSASA"
+}
+```
+
+#### Example Response (HTTP 200 OK)
+```json
+{
+  "status": "success",
+  "message": "Message sent successfully.",
+  "data": {
+    "request_id": 14,
+    "reference": "req_6ae8e1f5c34e2",
+    "recipient": "254712345678",
     "segments": 1,
     "estimated_cost": 1,
-    "sms_status": "pending_provider_confirmation",
-    "billing_status": "reserved_not_debited"
+    "sms_status": "accepted",
+    "billing_status": "debited"
   }
 }
 ```
 
-### Balance
+---
 
-```bash
-GET /sms/api/balance
+### 3. M-Pesa STK Push Payment
+
+Top up wallet balance programmatically or via the UI:
+
+```http
+POST /sms/api/v1/stk_push.php
+Content-Type: application/json
 ```
 
-### SMS history
-
-```bash
-GET /sms/api/history?limit=50&offset=0
+#### Request Body
+```json
+{
+  "amount": 100,
+  "phone": "254712345678"
+}
 ```
 
-### Sender IDs
+- Triggers an instant M-Pesa PIN prompt on the customer's handset.
+- **Dynamic Tunnel Detection**: Automatically detects the incoming tunnel URL (e.g. ngrok) and registers the callback endpoint seamlessly.
+- **Webhook Processing**: Upon successful PIN entry, Safaricom calls `callback.php` which validates the transaction, credits units based on the client's markup plan, and records a ledger transaction atomically.
 
-```bash
-GET /sms/api/sender-ids
-POST /sms/api/sender-ids
-```
+---
 
-The current implementation uses `TALKSASA` as the default approved sender ID for public sends, while sender ID requests can still be managed through the sender IDs API.
+## Billing & Rate Model
 
-### Wallet ledger
+1. **Segment Calculation**:
+   - Standard 60 characters per segment.
+   - Segments 1 & 2: 1 unit each.
+   - Segment 3+: 2 units each.
+2. **Safe Debit Flow**:
+   - Units are checked and reserved when the request is created.
+   - Balance is debited only after the provider gateway acknowledges acceptance (`HTTP 200/202`).
+   - If the gateway rejects the send, no balance deduction occurs.
 
-```bash
-GET /sms/api/ledger?limit=50&offset=0
-```
+---
 
-### Payment initiation
+## Security & Reliability
 
-```bash
-POST /sms/api/payment/initiate
-```
+- **No Credential Leakage**: `.env` and `.env2` are strictly ignored by `.gitignore`.
+- **Sanitized APIs**: Sensitive database primary keys (`client_id`) are stripped from client-facing responses.
+- **BOM-Free Headers**: Clean JSON output with no leading Byte Order Marks to guarantee standard HTTP compliance.
+- **Idempotent Webhooks**: M-Pesa callback processor validates transaction states to prevent double-crediting.
 
-## Billing model
+---
 
-The current billing flow follows a safer, delivery-confirmation model:
+## Version & Changelog
 
-1. Create the SMS request and reserve units
-2. Attempt provider delivery
-3. Debit the wallet only when the provider confirms success
-4. Leave the units untouched on failed or rejected sends
-
-This avoids charging clients for messages that never reach the provider or the end recipient.
-
-## Configuration
-
-### Environment variables
-
-The project loads `.env2` automatically through the bootstrap and database helpers.
-
-```env
-TALKSASA_API_KEY=your_key
-DB_HOST=localhost
-DB_PORT=3306
-DB_DATABASE=clayon_sms
-DB_USERNAME=root
-DB_PASSWORD=
-APP_URL=http://localhost/sms
-```
-
-### Key settings
-
-- `QUEUE_WORKER_LIMIT`: jobs processed per cron cycle
-- `QUEUE_RETRY_DELAY`: retry delay in minutes
-- `QUEUE_MAX_ATTEMPTS`: maximum retry attempts
-- `QUEUE_DEAD_LETTER_POLICY`: `manual_review` or `refund`
-
-## Database notes
-
-The setup script creates the database and initializes the schema from `sql/schema.sql`.
-
-Core tables include:
-
-- `clients`
-- `client_api_keys`
-- `wallet_accounts`
-- `wallet_ledger`
-- `sms_requests`
-- `sms_queue`
-- `sms_attempts`
-- `provider_sms_logs`
-- `mpesa_transactions`
-
-## Testing
-
-```bash
-php setup/init-db.php
-php setup/verify-setup.php
-```
-
-You can also test the API by using the generated admin API key from the setup output.
-
-## Security notes
-
-- Keep `.env2` out of version control
-- Store API keys securely and rotate them periodically
-- Prefer HTTPS in production
-- Review wallet and queue logs regularly
-
-## Version
-
-- Version: 1.1.0
-- Last updated: July 2026
-- Status: Production-ready for local deployment and testing
+- **Version**: 1.2.0
+- **Updated**: November 2026
+- **Changelog**:
+  - Added zero-dependency stream context fallback with CA certificate validation in `SMSService`.
+  - Added dynamic ngrok reverse proxy detection to `stk_push.php`.
+  - Sanitized `api/balance.php` response to strip sensitive internal IDs.
+  - Updated developer documentation and live code examples in `developer.php`.
